@@ -6,6 +6,7 @@ import axios from 'axios';
 function MicrophoneButton() {
     const [recording, setRecording] = React.useState(false);
     const [mediaRecorder, setMediaRecorder] = React.useState(null);
+    const [chunks, setChunks] = React.useState([]);
 
     const handleClick = () => {
         if (recording) {
@@ -14,6 +15,9 @@ function MicrophoneButton() {
             navigator.mediaDevices.getUserMedia({ audio: true })
                 .then(stream => {
                     const newMediaRecorder = new MediaRecorder(stream);
+                    newMediaRecorder.ondataavailable = e => {
+                        setChunks(prev => [...prev, e.data]);
+                    };
                     setMediaRecorder(newMediaRecorder);
                     newMediaRecorder.start();
                 });
@@ -22,13 +26,21 @@ function MicrophoneButton() {
     };
 
     React.useEffect(() => {
-        if (mediaRecorder) {
-            mediaRecorder.ondataavailable = e => {
-                // Do something with the audio data here
-                console.log(e.data);
-            };
+        if (!recording && chunks.length) {
+            const blob = new Blob(chunks, { 'type' : 'audio/ogg; codecs=opus' });
+            blob.arrayBuffer().then(buffer => {
+                const base64Audio = btoa(
+                    new Uint8Array(buffer)
+                      .reduce((data, byte) => data + String.fromCharCode(byte), '')
+                );
+                axios.post('http://localhost:8080/transcribe', { audio: base64Audio })
+                    .then(response => {
+                        console.log(response.data);
+                    });
+            });
+            setChunks([]);
         }
-    }, [mediaRecorder]);
+    }, [recording, chunks]);
 
     return (
         <button
@@ -57,7 +69,7 @@ export default function ChatBox(){
       let config = {
         method: 'post',
         maxBodyLength: Infinity,
-        url: 'https://api.deepinfra.com/v1/inference/mistralai/Mixtral-8x7B-Instruct-v0.1',
+        url: 'http://localhost:8080/chat',
         headers: { 
           'Content-Type': 'application/json'
         },
@@ -66,8 +78,8 @@ export default function ChatBox(){
       
       axios.request(config)
       .then((response) => {
-        console.log(response.data.results[0]);
-          setMessages([...messages,{generated_text: query, user: true}, response.data.results[0]]);
+        console.log(response.data);
+          setMessages([...messages,{generated_text: query, user: true}, {generated_text: response.data, user: false}]);
           console.log(messages)
       })
       .catch((error) => {
