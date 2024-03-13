@@ -85,7 +85,7 @@ export default function ChatBox(){
     return(
         <>
           
-    <div class="chat-content">
+    <div id="chat-content" class="overflow-x-hidden">
         <div className="chat-messages" id="chat-messages">
 
             {messages?.map((message) => {
@@ -106,7 +106,7 @@ export default function ChatBox(){
 
             <input onChange={handleChange} type="text" id="user-input" value={query} placeholder="Plan your next trip..."></input>
             <button id="send-button">Send<div className="hoverEffect"><div></div></div></button>
-            <MicrophoneButton/>
+            <MicrophoneButton class="record"/>
 
         </form>
         </div>
