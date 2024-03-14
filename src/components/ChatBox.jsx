@@ -3,7 +3,7 @@ import "../App.css"
 import axios from 'axios';
 
 
-function MicrophoneButton() {
+function MicrophoneButton({sendMessage}) {
     const [recording, setRecording] = React.useState(false);
     const [mediaRecorder, setMediaRecorder] = React.useState(null);
     const [chunks, setChunks] = React.useState([]);
@@ -34,8 +34,9 @@ function MicrophoneButton() {
                       .reduce((data, byte) => data + String.fromCharCode(byte), '')
                 );
                 axios.post('http://localhost:8080/transcribe', { audio: base64Audio })
-                    .then(response => {
+                    .then((response) => {
                         console.log(response.data);
+                        sendMessage(response.data);                        
                     });
             });
             setChunks([]);
@@ -79,7 +80,7 @@ export default function ChatBox(){
       axios.request(config)
       .then((response) => {
         console.log(response.data);
-          setMessages([...messages,{generated_text: query, user: true}, {generated_text: response.data, user: false}]);
+          setMessages([...messages,{generated_text: input, user: true}, {generated_text: response.data, user: false}]);
           console.log(messages)
       })
       .catch((error) => {
@@ -118,7 +119,7 @@ export default function ChatBox(){
 
             <input onChange={handleChange} type="text" id="user-input" value={query} placeholder="Plan your next trip..."></input>
             <button id="send-button">Send<div className="hoverEffect"><div></div></div></button>
-            <MicrophoneButton class="record"/>
+            <MicrophoneButton className="record" sendMessage={sendMessage}/>
 
         </form>
         </div>

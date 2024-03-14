@@ -2,16 +2,21 @@
 from langchain.llms import OpenAI
 from langchain.prompts import PromptTemplate
 import os
-os.environ["OPENAI_API_KEY"] = "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"
+from dotenv import load_dotenv
+load_dotenv() #
+# os.environ["OPENAI_API_KEY"] = "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"
 import requests
 from flask_cors import CORS
 from flask import Flask
 from threading import Thread
+import threading
 from flask import Flask, request
 import os
 from openai import OpenAI
-openai = OpenAI(api_key="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")
+openai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 import base64
+import pygame
+from pathlib import Path
 app = Flask('')
 CORS(app)
 # socketio = SocketIO(app, cors_allowed_origins="*")
@@ -23,8 +28,39 @@ conversation = ConversationChain(llm=llm, verbose=True)
 conversation.predict(input="""Hi there,  You are a travel agent who helps users make exciting travel plans.
 
       Ask me a set of questions regarding my travel and plan an iternary for me. The iternary should have description of each day.
-    """)
+    limit to 200-250 words.""")
 
+def synthesize_speech(texting):
+    text = f"{texting}"
+    print(text)
+
+    # Specify the model, voice, and input text
+    response = openai.audio.speech.create(
+        model="tts-1",
+        voice="alloy",
+        input=text
+    )
+    response.stream_to_file("output.mp3")
+    # Define the path where the audio file will be saved
+    temp_file = "./output.mp3"
+    # Save the audio to a temporary file
+
+    # response.stream_to_file(temp_file)
+
+    # Initialize pygame mixer
+    pygame.mixer.init()
+
+    # Load and play the audio file
+    pygame.mixer.music.load(temp_file)
+    pygame.mixer.music.play()
+
+    # Wait for the audio to finish playing
+    while pygame.mixer.music.get_busy():
+        pygame.time.Clock().tick(10)
+
+    # Clean up
+    pygame.mixer.quit()
+    os.remove(temp_file)
 
 @app.route('/')
 def home():
@@ -45,27 +81,31 @@ def start_conversation():
         return "Goodbye!"
     response = conversation.predict(input=user_input)
     print("Bot: ", response)
+    flask_thread = threading.Thread(target=synthesize_speech, args=(response,))
+    flask_thread.start()
     return response
 
 @app.route('/transcribe', methods=['POST'])
 def transcribe_audio():
    
-    print(request)
-    audio_data = request.json['audio']
+    print(request.get_data())
+    audio_data = request.get_json()['audio']
     decoded_data = base64.b64decode(audio_data)
     
     # Save the audio data to a temporary file
-    with open('/tmp/audio.webm', 'wb') as f:
+    with open('audio.webm', 'wb') as f:
         f.write(decoded_data)
     
     # Open the audio file for reading
-    audio_file = open('/tmp/audio.webm', "rb")
+    audio_file = open('audio.webm', "rb")
     
     # Transcribe the audio using OpenAI
-    transcript = openai.Audio.transcribe("whisper-1", audio_file)
+    transcript = openai.audio.transcriptions.create(model="whisper-1", 
+  file=audio_file)
+    print(transcript.text)
     
     # Return the transcription result
-    return transcript
+    return transcript.text
 
 
 
