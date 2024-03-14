@@ -7,7 +7,8 @@ load_dotenv() #
 # os.environ["OPENAI_API_KEY"] = "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"
 import requests
 from flask_cors import CORS
-from flask import Flask
+from flask import Flask, request, send_file
+from werkzeug.utils import secure_filename
 from threading import Thread
 import threading
 from flask import Flask, request
@@ -17,9 +18,32 @@ openai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 import base64
 import pygame
 from pathlib import Path
+
+import google.ai.generativelanguage as glm
+import pathlib
+import textwrap
+
+import google.generativeai as genai
+
+from IPython.display import display
+from IPython.display import Markdown
+
+
+def to_markdown(text):
+    text = text.replace('•', '  *')
+    return Markdown(textwrap.indent(text, '> ', predicate=lambda _: True))
+
+
+GOOGLE_API_KEY = "AIzaSyAbZHdUXe7MokOeBw4pxrnZ9LD3QpVV_5U"
+genai.configure(api_key=GOOGLE_API_KEY)
+
+model = genai.GenerativeModel('gemini-pro-vision')
+
 app = Flask('')
 CORS(app)
 # socketio = SocketIO(app, cors_allowed_origins="*")
+app.config['UPLOAD_FOLDER'] = 'uploads/'
+app.config['CORS_HEADERS'] = 'Content-Type'
 
 from langchain import OpenAI, ConversationChain
 llm= OpenAI(temperature=0.9)
@@ -72,10 +96,47 @@ def original():
   data = request.get_json()
   print(data)
 
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return 'No file part', 400
+    file = request.files['file']
+    if file.filename == '':
+        return 'No selected file', 400
+    if file:
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        image_to_text(f"uploads/{filename}")
+        return 'File uploaded successfully', 200
+
+def image_to_text(image_path):
+    response = model.generate_content(
+    glm.Content(
+        parts=[
+            glm.Part(
+                text="Identify the monument in this picture and give me just its co-ordinates and location in json format "),
+            glm.Part(
+                inline_data=glm.Blob(
+                    mime_type='image/jpeg',
+                    data=pathlib.Path(f'{image_path}').read_bytes()
+                )
+            ),
+        ],
+    ),
+    stream=True)
+
+    response.resolve()
+    print(response)
+    print(response.candidates[0].content.parts[0].text)
+    return response.candidates[0].content.parts[0].text
+
 @app.route('/chat', methods=['POST'])
-def start_conversation():
+def start_conversation(image_ctx):
     print("Starting conversation...")
-    data= request.get_json()
+    if(image_ctx):
+        data= image_ctx
+    else:
+        data= request.get_json()
     user_input = data['input']
     if user_input.lower() == "quit":
         return "Goodbye!"

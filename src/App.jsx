@@ -5,6 +5,7 @@ import SearchBar from './components/SearchBar';
 import Home from './components/Home';
 import ChatBox from './components/ChatBox';
 import VoiceWidget from './components/VoiceWidget';
+import ImageUpload from './components/ImageUpload';
 
 
 // const App = () => {
@@ -92,6 +93,7 @@ export default function App() {
     {/* <Home /> */}
     <ChatBox />
     {/* <VoiceWidget /> */}
+    {/* <ImageUpload /> */}
     </>
   );
 }

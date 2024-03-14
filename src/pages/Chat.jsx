@@ -1,7 +1,8 @@
 import React from "react";
-import Home from "../components/Home";
+import ChatBox from "../components/ChatBox";
+
 
 
 export default function Chat(){
-    <><h1>HI</h1></>
+    <><ChatBox /></>
 }
